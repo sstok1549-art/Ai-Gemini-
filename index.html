@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Irfan Store AI - Chatbot Cerdas</title>
+    
+    <script src="https://unpkg.com/@google/genai@0.14.0/dist/client.umd.js"></script>
+
+    <style>
+        /* CSS untuk Tampilan Modern dan Bersih */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 450px;
+            height: 650px;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background-color: #007bff; /* Biru Keren */
+            color: white;
+            padding: 15px;
+            text-align: center;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+        }
+
+        .chat-header h3 { margin: 0; font-size: 1.4em; }
+        .chat-header p { margin: 5px 0 0; font-size: 0.9em; opacity: 0.9; }
+
+        .chat-box {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background-color: #e6e6e6; /* Latar belakang chat */
+        }
+
+        /* Gaya Pesan */
+        .message { margin-bottom: 15px; display: flex; }
+        .message-content {
+            max-width: 80%;
+            padding: 12px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            line-height: 1.5;
+        }
+
+        .bot-message { justify-content: flex-start; }
+        .bot-message .message-content {
+            background-color: #ffffff;
+            color: #333;
+            border-top-left-radius: 2px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .user-message { justify-content: flex-end; }
+        .user-message .message-content {
+            background-color: #28a745; /* Hijau */
+            color: white;
+            border-top-right-radius: 2px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Input Area */
+        .chat-input-area {
+            display: flex;
+            padding: 10px;
+            background-color: #f7f7f7;
+            border-top: 1px solid #ddd;
+        }
+
+        #user-input {
+            flex-grow: 1;
+            padding: 12px 18px;
+            border: 1px solid #ccc;
+            border-radius: 25px;
+            font-size: 1em;
+            margin-right: 10px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        #user-input:focus { border-color: #007bff; }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover { background-color: #0056b3; }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    <div class="chat-header">
+        <h3>Halo Member! Saya Irfan Store AI 🤖</h3>
+        <p>Didukung oleh Gemini. Diciptakan oleh Irfan Store.</p>
+    </div>
+
+    <div class="chat-box" id="chat-box">
+        </div>
+
+    <div class="chat-input-area">
+        <input type="text" id="user-input" placeholder="Tanyakan pada Irfan Store AI..." autofocus>
+        <button onclick="kirimPesan()">Kirim</button>
+    </div>
+</div>
+
+<script>
+    // --- Bagian Utama JavaScript ---
+
+    // 1. KONFIGURASI API (PENTING!)
+    // Ganti 'YOUR_API_KEY_ANDA_DI_SINI' dengan kunci API Gemini Anda.
+    const API_KEY = ""; 
+
+    // Definisi Persona (System Instruction)
+    const SYSTEM_INSTRUCTION = (
+        "Anda adalah Asisten AI yang sangat cerdas, ramah, dan antusias bernama 'Irfan Store AI'. "
+        "Anda diciptakan oleh Irfan Store untuk melayani member setia. "
+        "Gaya bicara Anda harus selalu positif, informatif, dan membantu. "
+        "Di awal setiap balasan, tegaskan kembali identitas Anda sebagai Irfan Store AI."
+    );
+
+    // Inisialisasi Klien Gemini
+    const { GoogleGenAI } = genai;
+    const ai = new GoogleGenAI({ apiKey: Irfan_key });
+    
+    // Inisialisasi Chat Session
+    // Kita menggunakan History (riwayat percakapan) agar AI mengingat apa yang dibicarakan sebelumnya.
+    const chat = ai.chats.create({
+        model: "gemini-2.5-flash",
+        config: { systemInstruction: SYSTEM_INSTRUCTION }
+    });
+
+
+    // 2. Fungsi Tampilan Pesan di HTML
+    const chatBox = document.getElementById('chat-box');
+    const inputField = document.getElementById('user-input');
+
+    function tambahPesan(teks, tipe) {
+        const messageDiv = document.createElement('div');
+        messageDiv.classList.add('message', tipe + '-message');
+        
+        const contentDiv = document.createElement('div');
+        contentDiv.classList.add('message-content');
+        contentDiv.innerHTML = teks.replace(/\n/g, '<br>'); // Mengganti newline dengan <br> untuk format
+        
+        messageDiv.appendChild(contentDiv);
+        chatBox.appendChild(messageDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+    
+    // 3. Fungsi Logika Utama Pengiriman Pesan
+    async function kirimPesan() {
+        const inputTeks = inputField.value.trim();
+        if (!inputTeks) return;
+
+        // Tampilkan pesan pengguna
+        tambahPesan(inputTeks, 'user');
+        inputField.value = '';
+        inputField.disabled = true; // Nonaktifkan input saat AI sedang berpikir
+        
+        // Tampilkan indikator "AI sedang mengetik..."
+        const loadingIndicator = document.createElement('div');
+        loadingIndicator.id = 'loading';
+        loadingIndicator.innerHTML = '<div class="message bot-message"><div class="message-content">AI sedang mengetik...</div></div>';
+        chatBox.appendChild(loadingIndicator);
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        try {
+            // KIRIM PESAN KE GEMINI API
+            const result = await chat.sendMessage({ message: inputTeks });
+
+            // Hapus indikator loading
+            loadingIndicator.remove();
+            
+            // Tampilkan balasan AI
+            tambahPesan(result.text, 'bot');
+            
+        } catch (error) {
+            loadingIndicator.remove();
+            tambahPesan("Maaf, terjadi kesalahan koneksi. Pastikan API Key Anda benar dan kuota tersedia.", 'bot');
+            console.error("Gemini API Error:", error);
+        } finally {
+            inputField.disabled = false;
+            inputField.focus();
+        }
+    }
+
+    // 4. Inisiasi dan Event Listeners
+    window.onload = function() {
+        // Sapaan awal dari AI setelah 1 detik
+        setTimeout(() => {
+            const sapaan = "Halo member! Saya Irfan Store AI, siap mendengarkan cerita atau menjawab pertanyaan Anda. Ada yang bisa saya bantu hari ini?";
+            tambahPesan(sapaan, 'bot');
+        }, 1000);
+        
+        // Memicu kirimPesan saat tombol Enter ditekan
+        inputField.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                kirimPesan();
+            }
+            // Tambahkan console log untuk memastikan fungsi terpanggil
+async function kirimPesan() {
+    console.log("Fungsi kirimPesan dipanggil."); // <--- TAMBAHKAN INI
+    const inputTeks = inputField.value.trim();
+    if (!inputTeks) return;
+
+    // ... sisa kode
+        });
+    };
+</script>
+
+</body>
+</html>
